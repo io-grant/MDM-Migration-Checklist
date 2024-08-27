@@ -5,7 +5,7 @@
 # Author: Grant Huiras (io-grant)
 # Contributors: gil@macadmins
 # Last Update: 08/27/2024
-# Version: 1.2
+# Version: 1.3
 # Description: JAMF Migration Optimization Prep
 
 set -e # Exit immediately if a command exits with a non-zero status
@@ -51,7 +51,7 @@ updateScriptLog "Removing all management profiles..."
 sudo profiles remove -forced -all
 updateScriptLog "Management profiles removed."
 
-# Step 2: Disable MFA on Azure account
+# Disable MFA on Azure account
 confirm_action() {
     while true; do
         read -r -p "$1 (y/n): " yn
@@ -71,7 +71,9 @@ echo "Please manually resolve any OneDrive Sync issues if present."
 updateScriptLog "User notified to resolve any OneDrive Sync issues."
 
 # Move files into OneDrive
-confirm_action "Please ensure all needed files are moved into the OneDrive Folder and have synced before moving on. Have you completed this step?" "Please complete the step before proceeding."
+while ! confirm_action "Please ensure all needed files are moved into the OneDrive Folder and have synced before moving on. Have you completed this step?" "Please complete the step before proceeding."; do
+    echo "Please take the time to move and sync all necessary files."
+done
 updateScriptLog "Confirmed all needed files are moved into the OneDrive Folder and have synced."
 
 # Update/Upgrade to the most recent macOS version
@@ -113,7 +115,7 @@ echo "Emptying Trash..."
 rm -rf ~/.Trash/* || handle_error "Failed to empty Trash"
 updateScriptLog "Trash emptied."
 
-# Enroll in JAMF
+# Enroll in JAMF Instance
 echo "Enrolling in JAMF..."
 sudo profiles renew -type enrollment || handle_error "Failed to enroll in JAMF"
 updateScriptLog "Enrolled in JAMF."
@@ -142,8 +144,9 @@ sudo jamf policy -event installTeamViewer -verbose || handle_error "Failed to tr
 updateScriptLog "TeamViewer installation policy triggered."
 
 # Install and Apply OneDrive Preferences/Script in Jamf Pro
-echo "Applying OneDrive Preferences and Script in Jamf Pro..."
-confirm_action "Please ensure OneDrive is installed and all config profiles have been scoped to the machine in JAMF Pro before moving on. Have you completed this step?" "Please complete the step before proceeding."
+while ! confirm_action "Please ensure OneDrive is installed and all config profiles have been scoped to the machine in JAMF Pro. Have you completed this step?" "Please complete the step before proceeding."; do
+    echo "Please take the time to install OneDrive and scope all necessary config profiles."
+done
 updateScriptLog "Confirmed OneDrive is installed and configured."
 
 # App installation verification
