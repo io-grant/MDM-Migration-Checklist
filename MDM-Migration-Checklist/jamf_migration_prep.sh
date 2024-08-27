@@ -5,12 +5,14 @@
 # Author: Grant Huiras (io-grant)
 # Contributors: gil@macadmins
 # Last Update: 08/27/2024
-# Version: 1.1
+# Version: 1.2
 # Description: JAMF Migration Optimization Prep
+
+set -e # Exit immediately if a command exits with a non-zero status
 
 # Path to the swiftDialog binary and command file
 scriptLog="/var/log/jamf_migration_prep.log"
-scriptVersion="v1.0"
+scriptVersion="v1.2"
 
 # Identify logged-in user
 loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && !/loginwindow/ { print $3 }')
@@ -37,7 +39,14 @@ updateScriptLog "\n\n###\n# Jamf Migration Prep (${scriptVersion})\n###\n"
 updateScriptLog "\n\n###\n# Beginning Optimization\n###\n"
 updateScriptLog "Logged-in user: $loggedInUser"
 
-# Step 1: Remove management profiles
+# Function to handle errors
+handle_error() {
+    updateScriptLog "ERROR: $1"
+    echo "ERROR: $1" >&2
+    exit 1
+}
+
+# Remove management profiles
 updateScriptLog "Removing all management profiles..."
 sudo profiles remove -forced -all
 updateScriptLog "Management profiles removed."
@@ -57,30 +66,30 @@ confirm_action() {
 confirm_action "Please ensure that MFA is disabled on the user's Azure account or another authentication method is added. Have you completed this step?" "Please complete the step before proceeding."
 updateScriptLog "Confirmed MFA is disabled or alternative authentication method is added."
 
-# Step 3: Resolve any OneDrive Sync Issues
+# Resolve any OneDrive Sync Issues
 echo "Please manually resolve any OneDrive Sync issues if present."
 updateScriptLog "User notified to resolve any OneDrive Sync issues."
 
-# Step 4: Move files into OneDrive
+# Move files into OneDrive
 confirm_action "Please ensure all needed files are moved into the OneDrive Folder and have synced before moving on. Have you completed this step?" "Please complete the step before proceeding."
 updateScriptLog "Confirmed all needed files are moved into the OneDrive Folder and have synced."
 
-# Step 5: Update/Upgrade to the most recent macOS version
+# Update/Upgrade to the most recent macOS version
 echo "Updating to the latest macOS version..."
-sudo softwareupdate --install --all --restart
+sudo softwareupdate --install --all --restart || handle_error "Failed to update macOS"
 updateScriptLog "Updating to the latest macOS version."
 
-# Step 6: Remove OneDrive
+# Remove OneDrive
 echo "Uninstalling OneDrive..."
 if [ -x /Applications/AppCleaner.app/Contents/MacOS/AppCleaner ]; then
-    /Applications/AppCleaner.app/Contents/MacOS/AppCleaner --remove OneDrive
+    /Applications/AppCleaner.app/Contents/MacOS/AppCleaner --remove OneDrive || handle_error "Failed to remove OneDrive using AppCleaner"
     updateScriptLog "OneDrive removed using AppCleaner."
 else
-    rm -rf /Applications/OneDrive.app
+    rm -rf /Applications/OneDrive.app || handle_error "Failed to remove OneDrive manually"
     updateScriptLog "OneDrive manually removed."
 fi
 
-# Step 7: Move specified applications to Trash
+# Move specified applications to Trash
 echo "Moving specified applications to Trash..."
 apps=(
     "GarageBand" "Google Chrome" "iMovie" "Keynote" 
@@ -91,7 +100,7 @@ apps=(
 
 for app in "${apps[@]}"; do
     if [ -d "/Applications/$app.app" ]; then
-        sudo rm -rf "/Applications/$app.app"
+        sudo rm -rf "/Applications/$app.app" || handle_error "Failed to remove $app"
         updateScriptLog "$app moved to Trash."
     else
         echo "$app is not installed."
@@ -101,46 +110,53 @@ done
 
 # Empty the Trash
 echo "Emptying Trash..."
-rm -rf ~/.Trash/*
+rm -rf ~/.Trash/* || handle_error "Failed to empty Trash"
 updateScriptLog "Trash emptied."
 
-# Step 8: Enroll in JAMF
+# Enroll in JAMF
 echo "Enrolling in JAMF..."
-sudo profiles renew -type enrollment
+sudo profiles renew -type enrollment || handle_error "Failed to enroll in JAMF"
 updateScriptLog "Enrolled in JAMF."
 
 # Run Jamf recon with the asset tag
 read -r -p "Enter the computer name/asset tag: " computer_name
-sudo jamf recon -assetTag "$computer_name"
+sudo jamf recon -assetTag "$computer_name" || handle_error "Failed to run Jamf recon"
 updateScriptLog "Jamf recon run with asset tag: $computer_name."
 
-# Step 9: Self Service configurations
+# Self Service configurations
 echo "Configuring Self Service options..."
-sudo jamf policy -event removeSophos -verbose
+sudo jamf policy -event removeSophos -verbose || handle_error "Failed to trigger remove Sophos"
 updateScriptLog "Sophos removal policy triggered."
-sudo jamf policy -event makeUserPrinterAdmin -verbose
+sudo jamf policy -event makeUserPrinterAdmin -verbose || handle_error "Failed to trigger make user printer policy"
 updateScriptLog "User printer admin policy triggered."
-sudo jamf policy -event enableLocalLogin -verbose
+sudo jamf policy -event enableLocalLogin -verbose || handle_error "Failed to trigger enable local login policy"
 updateScriptLog "Local login enabled policy triggered."
 
-# Step 10: Install apps via Self Service
+# Install apps via Self Service
 echo "Installing required apps via Self Service..."
-sudo jamf policy -event installChrome -verbose
+sudo jamf policy -event installChrome -verbose || handle_error "Failed to trigger Chrome installation"
 updateScriptLog "Chrome installation policy triggered."
-sudo jamf policy -event installZoom -verbose
+sudo jamf policy -event installZoom -verbose || handle_error "Failed to trigger Zoom installation"
 updateScriptLog "Zoom installation policy triggered."
-sudo jamf policy -event installTeamViewer -verbose
+sudo jamf policy -event installTeamViewer -verbose || handle_error "Failed to trigger TeamViewer installation"
 updateScriptLog "TeamViewer installation policy triggered."
 
-# Step 11: Install and Apply OneDrive Preferences/Script in Jamf Pro
+# Install and Apply OneDrive Preferences/Script in Jamf Pro
 echo "Applying OneDrive Preferences and Script in Jamf Pro..."
 confirm_action "Please ensure OneDrive is installed and all config profiles have been scoped to the machine in JAMF Pro before moving on. Have you completed this step?" "Please complete the step before proceeding."
 updateScriptLog "Confirmed OneDrive is installed and configured."
 
-# Step 12: App installation verification
+# App installation verification
 echo "Verifying app installation..."
-updateScriptLog "App installation verification initiated."
-# Manual verification or further automation can be added here
+updateScriptLog "Initiating app installation verification..."
+apps_to_verify=("Google Chrome" "Zoom" "TeamViewer")
+for app in "${apps_to_verify[@]}"; do
+    if [ -d "/Applications/$app.app" ]; then
+        updateScriptLog "$app successfully installed."
+    else
+        updateScriptLog "WARNING: $app not found. Please verify installation manually."
+    fi
+done
 
 echo "Script completed. Please follow any manual steps indicated."
 updateScriptLog "Script completed."
