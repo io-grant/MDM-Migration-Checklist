@@ -4,8 +4,8 @@
 
 # Author: Grant Huiras (io-grant)
 # Contributors: gil@macadmins
-# Date: 08/26/2024
-# Version: 2024.08.26-1.0
+# Last Update: 08/27/2024
+# Version: 1.1
 # Description: JAMF Migration Optimization Prep
 
 # Path to the swiftDialog binary and command file
