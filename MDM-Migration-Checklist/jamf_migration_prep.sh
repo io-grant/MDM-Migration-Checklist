@@ -108,9 +108,9 @@ done
 
 # Special handling for TeamViewer
 echo "Removing TeamViewer components..."
-sudo rm -rf /Applications/TeamViewer.app
-sudo rm -rf /Library/Application\ Support/TeamViewer
-sudo rm -rf /Library/Preferences/com.teamviewer*
+sudo rm -rf /Applications/TeamViewerHost.app
+sudo rm -rf /Library/Application\ Support/TeamViewerHost
+sudo rm -rf /Library/Preferences/com.teamviewerhost*
 
 # Special handling for Zoom 
 echo "Removing Zoom components..."
