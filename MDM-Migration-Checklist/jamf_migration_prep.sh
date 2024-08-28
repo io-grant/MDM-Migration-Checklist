@@ -12,8 +12,8 @@ set -e # Exit immediately if a command exits with a non-zero status
 
 # Path to the swiftDialog binary and command file
 scriptLog="/var/log/jamf_migration_prep.log"
-scriptVersion="v1.2"
-
+scriptVersion="v1.3"
+ 
 # Identify logged-in user
 loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && !/loginwindow/ { print $3 }')
 USER_HOME="/Users/$loggedInUser"
