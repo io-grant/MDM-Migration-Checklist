@@ -4,15 +4,15 @@
 
 # Author: Grant Huiras (io-grant)
 # Contributors: gil@macadmins
-# Last Update: 08/27/2024
-# Version: 1.3
+# Last Update: 08/28/2024
+# Version: 1.5
 # Description: JAMF Migration Optimization Prep
 
 set -e # Exit immediately if a command exits with a non-zero status
 
 # Path to the swiftDialog binary and command file
 scriptLog="/var/log/jamf_migration_prep.log"
-scriptVersion="v1.3"
+scriptVersion="v1.5"
  
 # Identify logged-in user
 loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && !/loginwindow/ { print $3 }')
@@ -76,39 +76,48 @@ while ! confirm_action "Please ensure all needed files are moved into the OneDri
 done
 updateScriptLog "Confirmed all needed files are moved into the OneDrive Folder and have synced."
 
-# Update/Upgrade to the most recent macOS version
-echo "Updating to the latest macOS version..."
-sudo softwareupdate --install --all --restart || handle_error "Failed to update macOS"
-updateScriptLog "Updating to the latest macOS version."
-
 # Remove OneDrive
 echo "Uninstalling OneDrive..."
-if [ -x /Applications/AppCleaner.app/Contents/MacOS/AppCleaner ]; then
-    /Applications/AppCleaner.app/Contents/MacOS/AppCleaner --remove OneDrive || handle_error "Failed to remove OneDrive using AppCleaner"
-    updateScriptLog "OneDrive removed using AppCleaner."
-else
-    rm -rf /Applications/OneDrive.app || handle_error "Failed to remove OneDrive manually"
-    updateScriptLog "OneDrive manually removed."
-fi
+rm -rf /Applications/OneDrive.app || handle_error "Failed to remove OneDrive manually"
+updateScriptLog "OneDrive manually removed."
 
 # Move specified applications to Trash
 echo "Moving specified applications to Trash..."
 apps=(
     "GarageBand" "Google Chrome" "iMovie" "Keynote" 
     "Microsoft Excel" "Microsoft OneNote" "Microsoft Outlook" 
-    "Microsoft PowerPoint" "Microsoft Teams" "Microsoft Word" 
-    "Numbers" "Pages" "Zoom"
+    "Microsoft PowerPoint" "Microsoft Teams" "Microsoft Teams Classic" "Microsoft Word" 
+    "Numbers" "Pages" "TeamViewer Host" "Zoom"
 )
 
 for app in "${apps[@]}"; do
-    if [ -d "/Applications/$app.app" ]; then
-        sudo rm -rf "/Applications/$app.app" || handle_error "Failed to remove $app"
-        updateScriptLog "$app moved to Trash."
+    app_path=$(sudo find /Applications -maxdepth 2 -iname "${app}.app" -type d -print -quit)
+
+    if [ -n "$app_path" ]; then
+        if sudo rm -rf "$app_path"; then
+            echo "$app moved to Trash."
+            updateScriptLog "$app moved to Trash."
+        else
+            handle_error "Failed to move $app to Trash"
+        fi
     else
         echo "$app is not installed."
         updateScriptLog "$app was not installed, skipped removal."
     fi
 done
+
+# Special handling for TeamViewer
+echo "Removing TeamViewer components..."
+sudo rm -rf /Applications/TeamViewer.app
+sudo rm -rf /Library/Application\ Support/TeamViewer
+sudo rm -rf /Library/Preferences/com.teamviewer*
+
+# Special handling for Zoom 
+echo "Removing Zoom components..."
+sudo rm -rf /Applications/zoom.us.app
+sudo rm -rf ~/Library/Application\ Support/zoom.us
+sudo rm -rf ~/Library/Internet\ Plug-Ins/ZoomUsPlugIn.plugin
+sudo rm -rf ~/Library/Preferences/us.zoom.xos.plist
 
 # Empty the Trash
 echo "Emptying Trash..."
@@ -121,9 +130,11 @@ sudo profiles renew -type enrollment || handle_error "Failed to enroll in JAMF"
 updateScriptLog "Enrolled in JAMF."
 
 # Run Jamf recon with the asset tag
-read -r -p "Enter the computer name/asset tag: " computer_name
-sudo jamf recon -assetTag "$computer_name" || handle_error "Failed to run Jamf recon"
-updateScriptLog "Jamf recon run with asset tag: $computer_name."
+# read -r -p "Enter the computer name/asset tag: " computer_name
+# sudo jamf recon -assetTag "$computer_name" || handle_error "Failed to run Jamf recon"
+# updateScriptLog "Jamf recon run with asset tag: $computer_name."
+sudo jamf recon || handle_error "Failed to run Jamf recon"
+updateScriptLog "Jamf recon run."
 
 # Self Service configurations
 echo "Configuring Self Service options..."
@@ -134,13 +145,13 @@ updateScriptLog "User printer admin policy triggered."
 sudo jamf policy -event enableLocalLogin -verbose || handle_error "Failed to trigger enable local login policy"
 updateScriptLog "Local login enabled policy triggered."
 
-# Install apps via Self Service
+# Install apps via Self Service (some will not install due to being in mac app catalog via Jamf)
 echo "Installing required apps via Self Service..."
-sudo jamf policy -event installChrome -verbose || handle_error "Failed to trigger Chrome installation"
-updateScriptLog "Chrome installation policy triggered."
-sudo jamf policy -event installZoom -verbose || handle_error "Failed to trigger Zoom installation"
-updateScriptLog "Zoom installation policy triggered."
-sudo jamf policy -event installTeamViewer -verbose || handle_error "Failed to trigger TeamViewer installation"
+# sudo jamf policy -id installChrome -verbose || handle_error "Failed to trigger Chrome installation"
+# updateScriptLog "Chrome installation policy triggered."
+# sudo jamf policy -id installZoom -verbose || handle_error "Failed to trigger Zoom installation"
+# updateScriptLog "Zoom installation policy triggered."
+sudo jamf policy -event installTeamviewer || handle_error "Failed to trigger TeamViewer installation"
 updateScriptLog "TeamViewer installation policy triggered."
 
 # Install and Apply OneDrive Preferences/Script in Jamf Pro
@@ -160,6 +171,19 @@ for app in "${apps_to_verify[@]}"; do
         updateScriptLog "WARNING: $app not found. Please verify installation manually."
     fi
 done
+
+# Prompt for new computer name
+read -p "Enter new computer name: " NEW_NAME
+
+# Update system settings and Jamf Pro
+sudo scutil --set ComputerName "$NEW_NAME"
+sudo jamf setComputerName -name "$NEW_NAME"
+sudo jamf recon
+
+# Update/Upgrade to the most recent macOS version
+echo "Updating to the latest macOS version..."
+sudo softwareupdate --install --all --restart || handle_error "Failed to update macOS"
+updateScriptLog "Updating to the latest macOS version."
 
 echo "Script completed. Please follow any manual steps indicated."
 updateScriptLog "Script completed."
