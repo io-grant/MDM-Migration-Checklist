@@ -5,14 +5,14 @@
 # Author: Grant Huiras (io-grant)
 # Contributors: gil@macadmins
 # Last Update: 08/28/2024
-# Version: 1.5
+# Version: 1.6
 # Description: JAMF Migration Optimization Prep
 
 set -e # Exit immediately if a command exits with a non-zero status
 
 # Path to the swiftDialog binary and command file
 scriptLog="/var/log/jamf_migration_prep.log"
-scriptVersion="v1.5"
+scriptVersion="v1.6"
  
 # Identify logged-in user
 loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && !/loginwindow/ { print $3 }')
@@ -129,12 +129,29 @@ echo "Enrolling in JAMF..."
 sudo profiles renew -type enrollment || handle_error "Failed to enroll in JAMF"
 updateScriptLog "Enrolled in JAMF."
 
+# Confirm JAMF Enrollment
+echo "Please confirm JAMF enrollment before proceeding."
+updateScriptLog "User prompted to confirm JAMF enrollment."
+while ! confirm_action "Please confirm JAMF enrollment before moving on. Have you completed this step?" "Please complete the step before proceeding."; do
+    echo "Please take the time to confirm JAMF enrollment."
+    updateScriptLog "User did not confirm JAMF enrollment."
+    exit 1
+
 # Run Jamf recon with the asset tag
 # read -r -p "Enter the computer name/asset tag: " computer_name
 # sudo jamf recon -assetTag "$computer_name" || handle_error "Failed to run Jamf recon"
 # updateScriptLog "Jamf recon run with asset tag: $computer_name."
 sudo jamf recon || handle_error "Failed to run Jamf recon"
 updateScriptLog "Jamf recon run."
+
+# Prompt for new computer name
+read -p "Enter new computer name: " NEW_NAME
+
+# Update system settings and Jamf Pro
+sudo scutil --set ComputerName "$NEW_NAME"
+sudo jamf setComputerName -name "$NEW_NAME"
+sudo jamf recon
+updateScriptLog "Computer name updated to $NEW_NAME."
 
 # Self Service configurations
 echo "Configuring Self Service options..."
@@ -171,14 +188,6 @@ for app in "${apps_to_verify[@]}"; do
         updateScriptLog "WARNING: $app not found. Please verify installation manually."
     fi
 done
-
-# Prompt for new computer name
-read -p "Enter new computer name: " NEW_NAME
-
-# Update system settings and Jamf Pro
-sudo scutil --set ComputerName "$NEW_NAME"
-sudo jamf setComputerName -name "$NEW_NAME"
-sudo jamf recon
 
 # Update/Upgrade to the most recent macOS version
 echo "Updating to the latest macOS version..."
