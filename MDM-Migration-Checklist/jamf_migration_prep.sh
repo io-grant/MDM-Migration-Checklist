@@ -1,18 +1,18 @@
-#!/bin/zsh --no-rcs
+#!/bin/zsh
 # shellcheck shell=bash
 # shellcheck disable=SC2034
 
 # Author: Grant Huiras (io-grant)
 # Contributors: gil@macadmins
 # Last Update: 08/28/2024
-# Version: 1.6
+# Version: 1.7
 # Description: JAMF Migration Optimization Prep
 
 set -e # Exit immediately if a command exits with a non-zero status
 
 # Path to the swiftDialog binary and command file
 scriptLog="/var/log/jamf_migration_prep.log"
-scriptVersion="v1.6"
+scriptVersion="v1.7"
  
 # Identify logged-in user
 loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && !/loginwindow/ { print $3 }')
@@ -111,6 +111,7 @@ echo "Removing TeamViewer components..."
 sudo rm -rf /Applications/TeamViewerHost.app
 sudo rm -rf /Library/Application\ Support/TeamViewerHost
 sudo rm -rf /Library/Preferences/com.teamviewerhost*
+sleep 10
 
 # Special handling for Zoom 
 echo "Removing Zoom components..."
@@ -118,11 +119,13 @@ sudo rm -rf /Applications/zoom.us.app
 sudo rm -rf ~/Library/Application\ Support/zoom.us
 sudo rm -rf ~/Library/Internet\ Plug-Ins/ZoomUsPlugIn.plugin
 sudo rm -rf ~/Library/Preferences/us.zoom.xos.plist
+sleep 5
 
 # Empty the Trash
 echo "Emptying Trash..."
 rm -rf ~/.Trash/* || handle_error "Failed to empty Trash"
 updateScriptLog "Trash emptied."
+sleep 5
 
 # Enroll in JAMF Instance
 echo "Enrolling in JAMF..."
@@ -137,12 +140,18 @@ while ! confirm_action "Please confirm JAMF enrollment before moving on. Have yo
     updateScriptLog "User did not confirm JAMF enrollment."
     exit 1
 
+# Give time for MDM server to realize what has just happened
+sleep 120
+echo "Waiting for MDM server to realize what has just happened..."
+updateScriptLog "Waiting for MDM server to realize what has just happened..."
+
 # Run Jamf recon with the asset tag
-# read -r -p "Enter the computer name/asset tag: " computer_name
-# sudo jamf recon -assetTag "$computer_name" || handle_error "Failed to run Jamf recon"
-# updateScriptLog "Jamf recon run with asset tag: $computer_name."
+read -r -p "Enter the computer name/asset tag: " computer_name
+sudo jamf recon -assetTag "$computer_name" || handle_error "Failed to run Jamf recon"
+updateScriptLog "Jamf recon run with asset tag: $computer_name."
 sudo jamf recon || handle_error "Failed to run Jamf recon"
 updateScriptLog "Jamf recon run."
+sleep 10
 
 # Prompt for new computer name
 read -p "Enter new computer name: " NEW_NAME
@@ -163,13 +172,20 @@ sudo jamf policy -event enableLocalLogin -verbose || handle_error "Failed to tri
 updateScriptLog "Local login enabled policy triggered."
 
 # Install apps via Self Service (some will not install due to being in mac app catalog via Jamf)
-echo "Installing required apps via Self Service..."
+# echo "Installing required apps via Self Service..."
 # sudo jamf policy -id installChrome -verbose || handle_error "Failed to trigger Chrome installation"
 # updateScriptLog "Chrome installation policy triggered."
 # sudo jamf policy -id installZoom -verbose || handle_error "Failed to trigger Zoom installation"
 # updateScriptLog "Zoom installation policy triggered."
-sudo jamf policy -event installTeamviewer || handle_error "Failed to trigger TeamViewer installation"
-updateScriptLog "TeamViewer installation policy triggered."
+# sudo jamf policy -event installTeamviewer || handle_error "Failed to trigger TeamViewer installation"
+# updateScriptLog "TeamViewer installation policy triggered."
+
+# Manually install apps from Self Service
+echo "Please manually install the following apps via Self Service: Google Chrome, TeamViewer, Zoom, OneDrive"
+while ! confirm_action "PLease install the gfollowing apps from Self Service: Google Chrome, TeamViewer, Zoom, OneDrive. Have you completed this step?" "Please complete the step before proceeding."; do
+    echo "Please take the time to install OneDrive and scope all necessary config profiles."
+done
+updateScriptLog "Confirmed apps installed via Self Service."
 
 # Install and Apply OneDrive Preferences/Script in Jamf Pro
 while ! confirm_action "Please ensure OneDrive is installed and all config profiles have been scoped to the machine in JAMF Pro. Have you completed this step?" "Please complete the step before proceeding."; do
@@ -180,7 +196,7 @@ updateScriptLog "Confirmed OneDrive is installed and configured."
 # App installation verification
 echo "Verifying app installation..."
 updateScriptLog "Initiating app installation verification..."
-apps_to_verify=("Google Chrome" "Zoom" "TeamViewer")
+apps_to_verify=("Google Chrome" "Zoom" "TeamViewer" "OneDrive")
 for app in "${apps_to_verify[@]}"; do
     if [ -d "/Applications/$app.app" ]; then
         updateScriptLog "$app successfully installed."
@@ -188,6 +204,8 @@ for app in "${apps_to_verify[@]}"; do
         updateScriptLog "WARNING: $app not found. Please verify installation manually."
     fi
 done
+echo "Software uopdate will run after this, if you do not want to proceed please exit."
+sleep 15
 
 # Update/Upgrade to the most recent macOS version
 echo "Updating to the latest macOS version..."
