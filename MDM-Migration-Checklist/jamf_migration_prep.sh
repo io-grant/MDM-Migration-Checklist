@@ -71,8 +71,12 @@ echo "Please manually resolve any OneDrive Sync issues if present."
 updateScriptLog "User notified to resolve any OneDrive Sync issues."
 
 # Move files into OneDrive
-while ! confirm_action "Please ensure all needed files are moved into the OneDrive Folder and have synced before moving on. Have you completed this step?" "Please complete the step before proceeding."; do
-    echo "Please take the time to move and sync all necessary files."
+while true; do
+    if confirm_action "Please ensure all needed files are moved into the OneDrive Folder and have synced before moving on. Have you completed this step?" "Please complete the step before proceeding."; then
+        break
+    else
+        echo "Please take the time to move and sync all necessary files."
+    fi
 done
 updateScriptLog "Confirmed all needed files are moved into the OneDrive Folder and have synced."
 
@@ -135,10 +139,14 @@ updateScriptLog "Enrolled in JAMF."
 # Confirm JAMF Enrollment
 echo "Please confirm JAMF enrollment before proceeding."
 updateScriptLog "User prompted to confirm JAMF enrollment."
-while ! confirm_action "Please confirm JAMF enrollment before moving on. Have you completed this step?" "Please complete the step before proceeding."; do
-    echo "Please take the time to confirm JAMF enrollment."
-    updateScriptLog "User did not confirm JAMF enrollment."
-    exit 1
+while true; do
+    if confirm_action "Please confirm JAMF enrollment before moving on. Have you completed this step?" "Please complete the step before proceeding."; then
+        break
+    else
+        echo "Please take the time to confirm JAMF enrollment."
+        updateScriptLog "User did not confirm JAMF enrollment."
+    fi
+done
 
 # Give time for MDM server to realize what has just happened
 sleep 120
@@ -182,14 +190,22 @@ updateScriptLog "Local login enabled policy triggered."
 
 # Manually install apps from Self Service
 echo "Please manually install the following apps via Self Service: Google Chrome, TeamViewer, Zoom, OneDrive"
-while ! confirm_action "PLease install the gfollowing apps from Self Service: Google Chrome, TeamViewer, Zoom, OneDrive. Have you completed this step?" "Please complete the step before proceeding."; do
-    echo "Please take the time to install OneDrive and scope all necessary config profiles."
+while true; do
+    if confirm_action "PLease install the gfollowing apps from Self Service: Google Chrome, TeamViewer, Zoom, OneDrive. Have you completed this step?" "Please complete the step before proceeding."; then
+        break
+    else
+        echo "Please take the time to install OneDrive and scope all necessary config profiles."
+    fi
 done
 updateScriptLog "Confirmed apps installed via Self Service."
 
 # Install and Apply OneDrive Preferences/Script in Jamf Pro
-while ! confirm_action "Please ensure OneDrive is installed and all config profiles have been scoped to the machine in JAMF Pro. Have you completed this step?" "Please complete the step before proceeding."; do
-    echo "Please take the time to install OneDrive and scope all necessary config profiles."
+while true; do
+    if confirm_action "Please ensure OneDrive is installed and all config profiles have been scoped to the machine in JAMF Pro. Have you completed this step?" "Please complete the step before proceeding."; then
+        break
+    else
+        echo "Please take the time to install OneDrive and scope all necessary config profiles."
+    fi
 done
 updateScriptLog "Confirmed OneDrive is installed and configured."
 
