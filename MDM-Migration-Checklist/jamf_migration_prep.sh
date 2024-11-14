@@ -3,7 +3,6 @@
 # shellcheck disable=SC2034
 
 # Author: Grant Huiras (io-grant)
-# Contributors: gil@macadmins
 # Last Update: 09/26/2024
 # Version: 1.7
 # Description: JAMF Migration Optimization Prep
