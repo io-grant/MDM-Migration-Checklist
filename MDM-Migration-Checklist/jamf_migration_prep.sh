@@ -229,3 +229,5 @@ updateScriptLog "Updating to the latest macOS version."
 
 echo "Script completed. Please follow any manual steps indicated."
 updateScriptLog "Script completed."
+
+
