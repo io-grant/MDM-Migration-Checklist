@@ -65,7 +65,7 @@ This document outlines the step-by-step process for migrating devices to our JAM
 ### Phase 4: JAMF Enrollment
 1. **Initial Enrollment**
    - Script triggers JAMF enrollment
-   - *Manual Check Point:* Confirm enrollment status
+   - *Manual Check Point:* Confirm enrollment status (somtimes has issues depending how your JAMF Pro server is setup.)
 
 2. **Device Configuration**
    - Enter new computer name when prompted
@@ -113,16 +113,3 @@ This document outlines the step-by-step process for migrating devices to our JAM
 - [ ] Test Self Service functionality
 - [ ] Verify user permissions
 - [ ] Check system update status
-
-## Support Contact Information
-- IT Support Portal: [Insert URL]
-- Emergency Support: [Insert Phone Number]
-- Email: [Insert Email]
-
-## Related Documentation
-- JAMF Pro Administrator Guide
-- OneDrive Migration Guide
-- Azure MFA Configuration Guide
-
----
-*For internal use only. Please report any issues or suggested updates to the IT team.*
