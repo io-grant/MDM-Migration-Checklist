@@ -4,10 +4,10 @@ A comprehensive shell script for automating the migration and optimization of JA
 
 ## Features
 
-- Automated removal of management profiles
-- Azure MFA verification
-- OneDrive sync and migration handling
-- Bulk application removal
+- Automated removal of management profiles (some may need admin credentials)
+- Azure MFA verification (may require assistance for disabling)
+- OneDrive sync and migration handling (requires MFA to be disabled)
+- Bulk application removal (applications can be added or removed via the script)
 - JAMF enrollment automation
 - System settings configuration
 - Self Service app installation
